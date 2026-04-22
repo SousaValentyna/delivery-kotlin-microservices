@@ -1,0 +1,57 @@
+services:
+  order-service:
+    build:
+      context: ./order-service
+    container_name: order-service
+    environment:
+      PORT: "8081"
+      KITCHEN_URL: http://kitchen-service:8082
+      BILLING_URL: http://billing-service:8083
+    ports:
+      - "8081:8081"
+    networks:
+      - delivery-net
+
+  kitchen-service:
+    build:
+      context: ./kitchen-service
+    container_name: kitchen-service
+    environment:
+      PORT: "8082"
+      BILLING_URL: http://billing-service:8083
+    # Host 18082 evita conflito se 8082 já estiver em uso (ex.: outro stack Docker)
+    ports:
+      - "18082:8082"
+    networks:
+      - delivery-net
+    depends_on:
+      - billing-service
+
+  billing-service:
+    build:
+      context: ./billing-service
+    container_name: billing-service
+    environment:
+      PORT: "8083"
+    ports:
+      - "8083:8083"
+    networks:
+      - delivery-net
+
+  frontend:
+    image: nginx:1.25-alpine
+    container_name: delivery-frontend
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "8080:80"
+    networks:
+      - delivery-net
+    depends_on:
+      - order-service
+
+networks:
+  delivery-net:
+    name: delivery-net
+    driver: bridge

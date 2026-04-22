@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Delivery — Sistema de Pedidos</title>
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <script src="https://unpkg.com/axios@1.6.8/dist/axios.min.js"></script>
+  <style>
+    :root { font-family: "Segoe UI", system-ui, sans-serif; }
+    body { margin: 0; background: #0f1419; color: #e6edf3; }
+    .wrap { max-width: 640px; margin: 0 auto; padding: 1.5rem; }
+    h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 0.5rem; }
+    p.sub { color: #8b949e; margin: 0 0 1.25rem; font-size: 0.9rem; }
+    label { display: block; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.35rem; }
+    input, button {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.6rem 0.75rem;
+      border-radius: 8px;
+      border: 1px solid #30363d;
+      background: #161b22;
+      color: #e6edf3;
+      font-size: 0.95rem;
+    }
+    input:focus { outline: none; border-color: #58a6ff; }
+    button {
+      margin-top: 0.75rem;
+      background: #238636;
+      border-color: #2ea043;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 1rem 1.1rem;
+      margin-top: 1.25rem;
+    }
+    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+    .tag {
+      display: inline-block;
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: #21262d;
+    }
+    .st-PENDENTE, .st-EM_FILA { color: #d4a72c; }
+    .st-PREPARANDO { color: #58a6ff; }
+    .st-FINALIZADO { color: #3fb950; }
+    .st-COBRANCA_ERRO { color: #f85149; }
+    .err { color: #f85149; font-size: 0.85rem; margin-top: 0.5rem; }
+    .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
+  </style>
+</head>
+<body>
+  <div id="app" class="wrap">
+    <h1>Delivery de pedidos</h1>
+    <p class="sub">M1 (ordens) com timeout 2s → M2 (cozinha) → M3 (cobrança). Status via polling do Order Service.</p>
+
+    <div class="card">
+      <h2 style="font-size:1rem;margin:0 0 0.75rem;">Fazer pedido</h2>
+      <label for="item">Resumo do pedido</label>
+      <input id="item" v-model="itemResumo" type="text" placeholder="Ex.: 2x Pizza, 1x Refrigerante" />
+      <button type="button" :disabled="loading" @click="criarPedido">Enviar pedido</button>
+      <p v-if="erro" class="err">{{ erro }}</p>
+    </div>
+
+    <div v-if="orderId" class="card">
+      <h2 style="font-size:1rem;margin:0 0 0.75rem;">Dashboard de status</h2>
+      <p class="row">
+        <span>ID do pedido:</span>
+        <code class="mono tag">{{ orderId }}</code>
+      </p>
+      <p class="row" style="margin-top:0.5rem">
+        <span>Estado:</span>
+        <strong :class="'st-' + status">{{ statusLabel(status) }}</strong>
+        <span class="tag">atualizando a cada 2s</span>
+      </p>
+      <p v-if="mensagem" style="margin:0.5rem 0 0;font-size:0.88rem;color:#8b949e;">{{ mensagem }}</p>
+    </div>
+  </div>
+  <script>
+    const { createApp } = Vue;
+    const api = (typeof axios !== 'undefined') ? axios : null;
+    if (!api) document.body.innerHTML = '<p>Axios não carregou</p>';
+    // Nginx (porta 8080 no host) faz proxy de /api → M1. Acesso direto a M1 na 8081 usa base vazia.
+    const API = (['8080', '80'].indexOf(String(location.port)) >= 0)
+      ? '/api'
+      : (String(location.port) === '8081' ? '' : 'http://' + location.hostname + ':8081');
+
+    createApp({
+      data() {
+        return {
+          itemResumo: 'Pizza Média + Guaraná',
+          loading: false,
+          erro: null,
+          orderId: null,
+          status: 'PENDENTE',
+          mensagem: null,
+          poll: null
+        };
+      },
+      unmounted() {
+        if (this.poll) clearInterval(this.poll);
+      },
+      methods: {
+        statusLabel(s) {
+          const m = {
+            PENDENTE: 'Pendente',
+            EM_FILA: 'Em fila (cozinha ocupada / timeout M1)',
+            PREPARANDO: 'Preparando',
+            FINALIZADO: 'Finalizado',
+            COBRANCA_ERRO: 'Erro na cobrança após retentativas'
+          };
+          return m[s] || s;
+        },
+        async criarPedido() {
+          this.erro = null;
+          this.loading = true;
+          if (this.poll) { clearInterval(this.poll); this.poll = null; }
+          try {
+            const r = await api.post((API) + '/orders', { itemResumo: this.itemResumo }, { validateStatus: () => true });
+            if (r.status !== 201 && r.status !== 202) {
+              this.erro = r.data?.erro || ('HTTP ' + r.status);
+              return;
+            }
+            this.orderId = r.data.orderId;
+            this.mensagem = r.data.mensagem;
+            await this.atualizarStatus();
+            this.poll = setInterval(() => this.atualizarStatus(), 2000);
+          } catch (e) {
+            this.erro = (e.response && e.response.data) ? JSON.stringify(e.response.data) : (e.message || 'Erro de rede');
+          } finally {
+            this.loading = false;
+          }
+        },
+        async atualizarStatus() {
+          if (!this.orderId) return;
+          try {
+            const r = await api.get((API) + '/orders/' + this.orderId);
+            this.status = r.data.status;
+            this.mensagem = r.data.mensagem;
+            if (this.status === 'FINALIZADO' || this.status === 'COBRANCA_ERRO') {
+              if (this.poll) { clearInterval(this.poll); this.poll = null; }
+            }
+          } catch (e) {
+            console.warn('Pausa no polling', e);
+          }
+        }
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
