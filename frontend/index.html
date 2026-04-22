@@ -206,6 +206,82 @@
       box-shadow: 0 0 0 3px var(--accent-dim);
     }
 
+    .select-wrap {
+      position: relative;
+    }
+
+    .select-wrap::after {
+      content: "";
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      width: 0.55rem;
+      height: 0.55rem;
+      border-right: 2px solid var(--text-muted);
+      border-bottom: 2px solid var(--text-muted);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+    }
+
+    select.select-field {
+      width: 100%;
+      padding: 0.85rem 2.75rem 0.85rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      cursor: pointer;
+      appearance: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    select.select-field:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    select.select-field:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    select.select-field option,
+    select.select-field optgroup {
+      background: var(--bg-surface);
+      color: var(--text);
+    }
+
+    .menu-desc {
+      margin: 0.5rem 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+      min-height: 2.4em;
+    }
+
+    .custom-block {
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .order-items-preview {
+      margin-top: 0.85rem;
+      padding: 0.65rem 0.85rem;
+      border-radius: var(--radius-sm);
+      background: var(--bg-deep);
+      border: 1px solid var(--border);
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+
+    .order-items-preview strong {
+      color: var(--accent);
+      font-weight: 600;
+    }
+
     .btn {
       display: inline-flex;
       align-items: center;
@@ -488,15 +564,45 @@
           <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
           Novo pedido
         </h2>
-        <label for="item">Itens do pedido</label>
-        <input
-          id="item"
-          v-model="itemResumo"
-          type="text"
-          autocomplete="off"
-          placeholder="Ex.: 2× Calabresa média, 1× Guaraná"
-          @keydown.enter.prevent="criarPedido"
-        />
+        <label for="menu-select">Cardápio — escolha o pedido</label>
+        <div class="select-wrap">
+          <select
+            id="menu-select"
+            v-model="selectedMenuId"
+            class="select-field"
+            aria-describedby="menu-desc"
+          >
+            <template v-for="group in menuGroups" :key="group.label">
+              <optgroup :label="group.label">
+                <option
+                  v-for="item in group.items"
+                  :key="item.id"
+                  :value="item.id"
+                >{{ item.label }}</option>
+              </optgroup>
+            </template>
+            <option value="__custom__">Outro… (personalizar)</option>
+          </select>
+        </div>
+        <p id="menu-desc" class="menu-desc">{{ menuHint }}</p>
+
+        <div v-if="selectedMenuId === '__custom__'" class="custom-block">
+          <label for="custom-item">Descreva o pedido</label>
+          <input
+            id="custom-item"
+            v-model="itemResumoCustom"
+            type="text"
+            autocomplete="off"
+            placeholder="Ex.: 2× Calabresa média, 1× Coca-Cola"
+            @keydown.enter.prevent="criarPedido"
+          />
+        </div>
+
+        <div class="order-items-preview" aria-live="polite">
+          <strong>Resumo enviado ao servidor:</strong>
+          {{ itemResumo || '—' }}
+        </div>
+
         <button type="button" class="btn" :disabled="loading" @click="criarPedido">
           <span v-if="loading" class="spinner" aria-hidden="true"></span>
           {{ loading ? 'Enviando…' : 'Enviar pedido' }}
@@ -522,6 +628,10 @@
           </div>
           <button type="button" class="btn-ghost" @click="copiarId">Copiar ID</button>
         </div>
+
+        <p v-if="ultimoPedidoResumo" class="order-items-preview" style="margin-bottom:1rem">
+          <strong>Itens:</strong> {{ ultimoPedidoResumo }}
+        </p>
 
         <p style="margin:0 0 0.75rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem">
           <span style="font-size:0.85rem;color:var(--text-muted)">Estado:</span>
@@ -580,10 +690,67 @@
 
     const STEP_ORDER = ["PENDENTE", "EM_FILA", "PREPARANDO", "FINALIZADO"];
 
+    const MENU_GROUPS = [
+      {
+        label: "Combos",
+        items: [
+          {
+            id: "combo-margherita",
+            label: "Combo Margherita — pizza média + refrigerante",
+            resumo: "1× Pizza Margherita média + 1× Refrigerante lata",
+            desc: "Clássico do cardápio; ideal para testar o fluxo completo."
+          },
+          {
+            id: "combo-calabresa",
+            label: "Combo Calabresa — pizza + guaraná",
+            resumo: "1× Pizza Calabresa média + 1× Guaraná 350ml",
+            desc: "Sabor mais pedido na simulação."
+          }
+        ]
+      },
+      {
+        label: "Pizzas",
+        items: [
+          {
+            id: "pizza-portuguesa",
+            label: "Pizza Portuguesa (grande)",
+            resumo: "1× Pizza Portuguesa grande",
+            desc: "Apenas pizza; peça bebida à parte se quiser."
+          },
+          {
+            id: "pizza-vegetariana",
+            label: "Pizza Vegetariana (média)",
+            resumo: "1× Pizza Vegetariana média",
+            desc: "Sem carnes."
+          }
+        ]
+      },
+      {
+        label: "Bebidas & extras",
+        items: [
+          {
+            id: "bebida-agua",
+            label: "Água mineral + salada simples",
+            resumo: "1× Água 500ml + 1× Salada mista",
+            desc: "Pedido leve para variar o resumo."
+          },
+          {
+            id: "sobremesa",
+            label: "Brownie com sorvete",
+            resumo: "1× Brownie com bola de sorvete caramelo",
+            desc: "Sobremesa — mesmo fluxo de cozinha/cobrança."
+          }
+        ]
+      }
+    ];
+
     createApp({
       data() {
         return {
-          itemResumo: "Pizza média + Guaraná",
+          menuGroups: MENU_GROUPS,
+          selectedMenuId: MENU_GROUPS[0].items[0].id,
+          itemResumoCustom: "",
+          ultimoPedidoResumo: null,
           loading: false,
           erro: null,
           orderId: null,
@@ -599,6 +766,26 @@
         };
       },
       computed: {
+        itemResumo() {
+          if (this.selectedMenuId === "__custom__") {
+            return (this.itemResumoCustom || "").trim();
+          }
+          for (const g of this.menuGroups) {
+            const it = g.items.find((i) => i.id === this.selectedMenuId);
+            if (it) return it.resumo;
+          }
+          return "";
+        },
+        menuHint() {
+          if (this.selectedMenuId === "__custom__") {
+            return "Escreva os itens à mão; o mesmo texto é enviado ao Order Service como itemResumo.";
+          }
+          for (const g of this.menuGroups) {
+            const it = g.items.find((i) => i.id === this.selectedMenuId);
+            if (it?.desc) return it.desc;
+          }
+          return "";
+        },
         stepIndex() {
           if (this.status === "COBRANCA_ERRO") return 2;
           const i = STEP_ORDER.indexOf(this.status);
@@ -633,15 +820,24 @@
         },
         async criarPedido() {
           this.erro = null;
+          const texto = (this.itemResumo || "").trim();
+          if (!texto) {
+            this.erro =
+              this.selectedMenuId === "__custom__"
+                ? "Descreva o pedido ou escolha um item no cardápio."
+                : "Selecione um item válido no cardápio.";
+            return;
+          }
           this.loading = true;
           if (this.poll) { clearInterval(this.poll); this.poll = null; }
           try {
-            const r = await api.post((API) + "/orders", { itemResumo: this.itemResumo }, { validateStatus: () => true });
+            const r = await api.post((API) + "/orders", { itemResumo: texto }, { validateStatus: () => true });
             if (r.status !== 201 && r.status !== 202) {
               this.erro = r.data?.erro || ("HTTP " + r.status);
               return;
             }
             this.orderId = r.data.orderId;
+            this.ultimoPedidoResumo = texto;
             this.mensagem = r.data.mensagem;
             await this.atualizarStatus();
             this.poll = setInterval(() => this.atualizarStatus(), 2000);
