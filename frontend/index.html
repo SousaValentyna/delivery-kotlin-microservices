@@ -3,105 +3,607 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Delivery — Sistema de Pedidos</title>
+  <title>Delivery — Pedidos</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
   <script src="https://unpkg.com/axios@1.6.8/dist/axios.min.js"></script>
   <style>
-    :root { font-family: "Segoe UI", system-ui, sans-serif; }
-    body { margin: 0; background: #0f1419; color: #e6edf3; }
-    .wrap { max-width: 640px; margin: 0 auto; padding: 1.5rem; }
-    h1 { font-size: 1.4rem; font-weight: 600; margin: 0 0 0.5rem; }
-    p.sub { color: #8b949e; margin: 0 0 1.25rem; font-size: 0.9rem; }
-    label { display: block; font-size: 0.85rem; color: #8b949e; margin-bottom: 0.35rem; }
-    input, button {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0.6rem 0.75rem;
-      border-radius: 8px;
-      border: 1px solid #30363d;
-      background: #161b22;
-      color: #e6edf3;
-      font-size: 0.95rem;
+    :root {
+      --bg-deep: #0c0e12;
+      --bg-surface: #14181f;
+      --bg-elevated: #1a2029;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: #f59e0b;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --accent: #f59e0b;
+      --accent-dim: rgba(245, 158, 11, 0.15);
+      --success: #34d399;
+      --success-bg: rgba(52, 211, 153, 0.12);
+      --danger: #f87171;
+      --danger-bg: rgba(248, 113, 113, 0.12);
+      --info: #38bdf8;
+      --warning: #fbbf24;
+      --radius: 14px;
+      --radius-sm: 10px;
+      --shadow: 0 24px 48px rgba(0, 0, 0, 0.45);
+      --font: "Outfit", system-ui, sans-serif;
+      --mono: "JetBrains Mono", ui-monospace, monospace;
     }
-    input:focus { outline: none; border-color: #58a6ff; }
-    button {
-      margin-top: 0.75rem;
-      background: #238636;
-      border-color: #2ea043;
-      cursor: pointer;
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: var(--bg-deep);
+      color: var(--text);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .bg-mesh {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background:
+        radial-gradient(ellipse 80% 50% at 20% -10%, rgba(245, 158, 11, 0.14), transparent),
+        radial-gradient(ellipse 60% 40% at 100% 0%, rgba(56, 189, 248, 0.08), transparent),
+        radial-gradient(ellipse 50% 30% at 50% 100%, rgba(52, 211, 153, 0.06), transparent);
+      z-index: 0;
+    }
+
+    .app-shell {
+      position: relative;
+      z-index: 1;
+      max-width: 920px;
+      margin: 0 auto;
+      padding: clamp(1.25rem, 4vw, 2.5rem);
+      padding-bottom: 3rem;
+    }
+
+    .header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-mark {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, var(--accent), #d97706);
+      display: grid;
+      place-items: center;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.35);
+    }
+
+    .brand-mark svg { width: 26px; height: 26px; color: #0c0e12; }
+
+    .brand h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 3vw, 1.65rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .brand p {
+      margin: 0.2rem 0 0;
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      max-width: 28rem;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    .pill-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 8px var(--success);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+
+    .pill-dot.idle { animation: none; background: var(--text-muted); box-shadow: none; }
+
+    @keyframes pulse-dot {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.45; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .pill-dot { animation: none; }
+    }
+
+    .grid {
+      display: grid;
+      gap: 1.25rem;
+    }
+
+    @media (min-width: 720px) {
+      .grid-2 {
+        grid-template-columns: 1fr 1fr;
+        align-items: start;
+      }
+    }
+
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.35rem 1.5rem;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0 0 1.1rem;
+      font-size: 1rem;
       font-weight: 600;
     }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    .card {
-      background: #161b22;
-      border: 1px solid #30363d;
-      border-radius: 10px;
-      padding: 1rem 1.1rem;
-      margin-top: 1.25rem;
+
+    .card-title .icon {
+      width: 22px;
+      height: 22px;
+      opacity: 0.9;
     }
-    .row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    .tag {
-      display: inline-block;
+
+    label {
+      display: block;
       font-size: 0.8rem;
-      padding: 0.2rem 0.5rem;
-      border-radius: 6px;
-      background: #21262d;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.45rem;
     }
-    .st-PENDENTE, .st-EM_FILA { color: #d4a72c; }
-    .st-PREPARANDO { color: #58a6ff; }
-    .st-FINALIZADO { color: #3fb950; }
-    .st-COBRANCA_ERRO { color: #f85149; }
-    .err { color: #f85149; font-size: 0.85rem; margin-top: 0.5rem; }
-    .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; word-break: break-all; }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    input[type="text"]::placeholder { color: #64748b; }
+
+    input[type="text"]:hover {
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      box-shadow: 0 0 0 3px var(--accent-dim);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      margin-top: 1rem;
+      padding: 0.9rem 1.25rem;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: var(--font);
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: linear-gradient(180deg, #fbbf24, var(--accent));
+      color: #0c0e12;
+      box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+      transition: transform 0.12s, box-shadow 0.12s, filter 0.12s;
+    }
+
+    .btn:hover:not(:disabled) {
+      filter: brightness(1.05);
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.4);
+    }
+
+    .btn:active:not(:disabled) {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn .spinner {
+      width: 18px;
+      height: 18px;
+      border: 2px solid rgba(12, 14, 18, 0.3);
+      border-top-color: #0c0e12;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .btn .spinner { animation: none; border: 2px solid #0c0e12; }
+    }
+
+    .alert {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+    }
+
+    .alert-err {
+      background: var(--danger-bg);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+    }
+
+    .timeline-track {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    @media (min-width: 560px) {
+      .timeline-track {
+        flex-direction: row;
+        justify-content: space-between;
+        gap: 0.35rem;
+      }
+    }
+
+    .step {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 0.5rem 0.25rem;
+      position: relative;
+    }
+
+    @media (min-width: 560px) {
+      .step:not(:last-child)::after {
+        content: "";
+        position: absolute;
+        top: 18px;
+        left: calc(50% + 18px);
+        width: calc(100% - 36px);
+        height: 2px;
+        background: var(--border);
+        z-index: 0;
+      }
+      .step.done:not(:last-child)::after,
+      .step.active:not(:last-child)::after {
+        background: linear-gradient(90deg, var(--accent), rgba(245, 158, 11, 0.3));
+      }
+    }
+
+    .step-node {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: var(--bg-deep);
+      border: 2px solid var(--border);
+      color: var(--text-muted);
+      position: relative;
+      z-index: 1;
+      transition: border-color 0.2s, background 0.2s, color 0.2s;
+    }
+
+    .step.done .step-node {
+      background: var(--accent-dim);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .step.active .step-node {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #0c0e12;
+      box-shadow: 0 0 0 4px var(--accent-dim);
+    }
+
+    .step-label {
+      margin-top: 0.5rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+    }
+
+    .step.done .step-label,
+    .step.active .step-label {
+      color: var(--text);
+    }
+
+    .order-meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.65rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .order-id-box {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex: 1;
+      min-width: 0;
+      padding: 0.5rem 0.75rem;
+      background: var(--bg-deep);
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+
+    .order-id-box code {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      word-break: break-all;
+      color: var(--info);
+    }
+
+    .btn-ghost {
+      flex-shrink: 0;
+      padding: 0.4rem 0.65rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      font-family: var(--font);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-elevated);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .btn-ghost:hover {
+      color: var(--text);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-chip.st-PENDENTE,
+    .status-chip.st-EM_FILA {
+      background: rgba(251, 191, 36, 0.15);
+      color: var(--warning);
+      border: 1px solid rgba(251, 191, 36, 0.35);
+    }
+
+    .status-chip.st-PREPARANDO {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--info);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+    }
+
+    .status-chip.st-FINALIZADO {
+      background: var(--success-bg);
+      color: var(--success);
+      border: 1px solid rgba(52, 211, 153, 0.35);
+    }
+
+    .status-chip.st-COBRANCA_ERRO {
+      background: var(--danger-bg);
+      color: var(--danger);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+    }
+
+    .msg-banner {
+      margin-top: 1rem;
+      padding: 0.85rem 1rem;
+      border-radius: var(--radius-sm);
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      background: var(--bg-deep);
+      border-left: 3px solid var(--accent);
+    }
+
+    .hint {
+      margin: 1.25rem 0 0;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      line-height: 1.55;
+    }
+
+    .hint strong { color: var(--text); }
   </style>
 </head>
 <body>
-  <div id="app" class="wrap">
-    <h1>Delivery de pedidos</h1>
-    <p class="sub">M1 (ordens) com timeout 2s → M2 (cozinha) → M3 (cobrança). Status via polling do Order Service.</p>
+  <div class="bg-mesh" aria-hidden="true"></div>
+  <div id="app" class="app-shell">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M6 13h12l-1 7H7l-1-7z" />
+            <path d="M9 13V9a3 3 0 0 1 6 0v4" />
+          </svg>
+        </div>
+        <div>
+          <h1>Delivery Lab</h1>
+          <p>Microsserviços Kotlin: pedido → cozinha (timeout 2s) → cobrança. Acompanhe o fluxo em tempo real.</p>
+        </div>
+      </div>
+      <span class="pill" :title="orderId ? 'Atualizando status a cada 2s' : 'Envie um pedido para começar'">
+        <span class="pill-dot" :class="{ idle: !orderId || !poll }"></span>
+        {{ orderId ? 'Ao vivo' : 'Pronto' }}
+      </span>
+    </header>
 
-    <div class="card">
-      <h2 style="font-size:1rem;margin:0 0 0.75rem;">Fazer pedido</h2>
-      <label for="item">Resumo do pedido</label>
-      <input id="item" v-model="itemResumo" type="text" placeholder="Ex.: 2x Pizza, 1x Refrigerante" />
-      <button type="button" :disabled="loading" @click="criarPedido">Enviar pedido</button>
-      <p v-if="erro" class="err">{{ erro }}</p>
-    </div>
+    <div class="grid grid-2">
+      <section class="card" aria-labelledby="form-title">
+        <h2 id="form-title" class="card-title">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          Novo pedido
+        </h2>
+        <label for="item">Itens do pedido</label>
+        <input
+          id="item"
+          v-model="itemResumo"
+          type="text"
+          autocomplete="off"
+          placeholder="Ex.: 2× Calabresa média, 1× Guaraná"
+          @keydown.enter.prevent="criarPedido"
+        />
+        <button type="button" class="btn" :disabled="loading" @click="criarPedido">
+          <span v-if="loading" class="spinner" aria-hidden="true"></span>
+          {{ loading ? 'Enviando…' : 'Enviar pedido' }}
+        </button>
+        <p v-if="erro" class="alert alert-err" role="alert">
+          <span aria-hidden="true">⚠</span>
+          <span>{{ erro }}</span>
+        </p>
+        <p class="hint">
+          O serviço de pedidos pode responder <strong>201</strong> ou <strong>202</strong> (fila quando a cozinha demora). O painel consulta o Order Service a cada 2 segundos.
+        </p>
+      </section>
 
-    <div v-if="orderId" class="card">
-      <h2 style="font-size:1rem;margin:0 0 0.75rem;">Dashboard de status</h2>
-      <p class="row">
-        <span>ID do pedido:</span>
-        <code class="mono tag">{{ orderId }}</code>
-      </p>
-      <p class="row" style="margin-top:0.5rem">
-        <span>Estado:</span>
-        <strong :class="'st-' + status">{{ statusLabel(status) }}</strong>
-        <span class="tag">atualizando a cada 2s</span>
-      </p>
-      <p v-if="mensagem" style="margin:0.5rem 0 0;font-size:0.88rem;color:#8b949e;">{{ mensagem }}</p>
+      <section v-if="orderId" class="card" aria-labelledby="dash-title">
+        <h2 id="dash-title" class="card-title">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 12l4 4 8-8"/></svg>
+          Acompanhamento
+        </h2>
+
+        <div class="order-meta">
+          <div class="order-id-box">
+            <code>{{ orderId }}</code>
+          </div>
+          <button type="button" class="btn-ghost" @click="copiarId">Copiar ID</button>
+        </div>
+
+        <p style="margin:0 0 0.75rem;display:flex;align-items:center;flex-wrap:wrap;gap:0.5rem">
+          <span style="font-size:0.85rem;color:var(--text-muted)">Estado:</span>
+          <span class="status-chip" :class="'st-' + status">{{ statusLabel(status) }}</span>
+        </p>
+
+        <div class="timeline" role="list" aria-label="Etapas do pedido">
+          <div class="timeline-track">
+            <div
+              v-for="(s, i) in steps"
+              :key="s.key"
+              class="step"
+              :class="{ done: isStepDone(i), active: isStepActive(i) }"
+              role="listitem"
+            >
+              <div class="step-node">{{ isStepDone(i) ? '✓' : i + 1 }}</div>
+              <span class="step-label">{{ s.label }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="mensagem" class="msg-banner">{{ mensagem }}</div>
+      </section>
+
+      <section v-else class="card" style="opacity:0.92">
+        <h2 class="card-title">
+          <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+          Como funciona
+        </h2>
+        <ol style="margin:0;padding-left:1.15rem;color:var(--text-muted);font-size:0.9rem;line-height:1.7">
+          <li><strong style="color:var(--text)">Order</strong> recebe o pedido e chama a cozinha com timeout de 2s.</li>
+          <li><strong style="color:var(--text)">Kitchen</strong> simula preparo (3–7s) e finaliza na cobrança.</li>
+          <li><strong style="color:var(--text)">Billing</strong> garante idempotência por <code style="font-size:0.8rem;color:var(--info)">orderId</code>.</li>
+        </ol>
+        <p class="hint" style="margin-top:1rem">Envie um pedido à esquerda para ver a linha do tempo e o status consolidado.</p>
+      </section>
     </div>
   </div>
+
   <script>
     const { createApp } = Vue;
-    const api = (typeof axios !== 'undefined') ? axios : null;
-    if (!api) document.body.innerHTML = '<p>Axios não carregou</p>';
-    // Nginx (porta 8080 no host) faz proxy de /api → M1. Acesso direto a M1 na 8081 usa base vazia.
-    const API = (['8080', '80'].indexOf(String(location.port)) >= 0)
-      ? '/api'
-      : (String(location.port) === '8081' ? '' : 'http://' + location.hostname + ':8081');
+    const api = (typeof axios !== "undefined") ? axios : null;
+    if (!api) document.querySelector(".app-shell").innerHTML = "<p>Axios não carregou.</p>";
+
+    function resolveApiBase() {
+      if (location.protocol === "file:") {
+        return "http://127.0.0.1:8080/api";
+      }
+      const port = String(location.port || (location.protocol === "https:" ? "443" : "80"));
+      if (port === "8081") return "";
+      if (port === "8080" || port === "80" || port === "443") return "/api";
+      return "http://" + location.hostname + ":8081";
+    }
+
+    const API = resolveApiBase();
+
+    const STEP_ORDER = ["PENDENTE", "EM_FILA", "PREPARANDO", "FINALIZADO"];
 
     createApp({
       data() {
         return {
-          itemResumo: 'Pizza Média + Guaraná',
+          itemResumo: "Pizza média + Guaraná",
           loading: false,
           erro: null,
           orderId: null,
-          status: 'PENDENTE',
+          status: "PENDENTE",
           mensagem: null,
-          poll: null
+          poll: null,
+          steps: [
+            { key: "PENDENTE", label: "Recebido" },
+            { key: "EM_FILA", label: "Em fila" },
+            { key: "PREPARANDO", label: "Cozinha" },
+            { key: "FINALIZADO", label: "Entregue" }
+          ]
         };
+      },
+      computed: {
+        stepIndex() {
+          if (this.status === "COBRANCA_ERRO") return 2;
+          const i = STEP_ORDER.indexOf(this.status);
+          return i < 0 ? 0 : i;
+        }
       },
       unmounted() {
         if (this.poll) clearInterval(this.poll);
@@ -109,22 +611,34 @@
       methods: {
         statusLabel(s) {
           const m = {
-            PENDENTE: 'Pendente',
-            EM_FILA: 'Em fila (cozinha ocupada / timeout M1)',
-            PREPARANDO: 'Preparando',
-            FINALIZADO: 'Finalizado',
-            COBRANCA_ERRO: 'Erro na cobrança após retentativas'
+            PENDENTE: "Pendente",
+            EM_FILA: "Em fila (timeout M1)",
+            PREPARANDO: "Preparando",
+            FINALIZADO: "Finalizado",
+            COBRANCA_ERRO: "Erro na cobrança"
           };
           return m[s] || s;
+        },
+        copiarId() {
+          if (!this.orderId || !navigator.clipboard) return;
+          navigator.clipboard.writeText(this.orderId).catch(() => {});
+        },
+        isStepDone(i) {
+          if (this.status === "FINALIZADO") return true;
+          return this.stepIndex > i;
+        },
+        isStepActive(i) {
+          if (this.status === "FINALIZADO") return false;
+          return this.stepIndex === i;
         },
         async criarPedido() {
           this.erro = null;
           this.loading = true;
           if (this.poll) { clearInterval(this.poll); this.poll = null; }
           try {
-            const r = await api.post((API) + '/orders', { itemResumo: this.itemResumo }, { validateStatus: () => true });
+            const r = await api.post((API) + "/orders", { itemResumo: this.itemResumo }, { validateStatus: () => true });
             if (r.status !== 201 && r.status !== 202) {
-              this.erro = r.data?.erro || ('HTTP ' + r.status);
+              this.erro = r.data?.erro || ("HTTP " + r.status);
               return;
             }
             this.orderId = r.data.orderId;
@@ -132,7 +646,7 @@
             await this.atualizarStatus();
             this.poll = setInterval(() => this.atualizarStatus(), 2000);
           } catch (e) {
-            this.erro = (e.response && e.response.data) ? JSON.stringify(e.response.data) : (e.message || 'Erro de rede');
+            this.erro = (e.response && e.response.data) ? JSON.stringify(e.response.data) : (e.message || "Erro de rede");
           } finally {
             this.loading = false;
           }
@@ -140,18 +654,18 @@
         async atualizarStatus() {
           if (!this.orderId) return;
           try {
-            const r = await api.get((API) + '/orders/' + this.orderId);
+            const r = await api.get((API) + "/orders/" + this.orderId);
             this.status = r.data.status;
             this.mensagem = r.data.mensagem;
-            if (this.status === 'FINALIZADO' || this.status === 'COBRANCA_ERRO') {
+            if (this.status === "FINALIZADO" || this.status === "COBRANCA_ERRO") {
               if (this.poll) { clearInterval(this.poll); this.poll = null; }
             }
           } catch (e) {
-            console.warn('Pausa no polling', e);
+            console.warn("Pausa no polling", e);
           }
         }
       }
-    }).mount('#app');
+    }).mount("#app");
   </script>
 </body>
 </html>
